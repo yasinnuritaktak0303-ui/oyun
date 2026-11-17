@@ -30,7 +30,7 @@ let html = readFileSync(resolve(root, 'index.html'), 'utf8');
 html = html
   .replace(/<link rel="manifest"[^>]*>\s*/, '')
   .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="${icon}" />`)
-  .replace(/<link rel="stylesheet"[^>]*>/, () => `<style>\n${css}\n</style>`)
+  .replace(/<link rel="stylesheet" href="css\/style.css"[^>]*>/, () => `<style>\n${css}\n</style>`)
   .replace(/<script type="importmap">[\s\S]*?<\/script>\s*/, '')
   .replace(/<script type="module" src="js\/main.js"><\/script>/, () => `<script>\n/* OtoDünya — tek dosya sürümü. Three.js (MIT) dahildir. */\n${js}\n</script>`);
 const file = resolve(root, 'oyun-tek-dosya.html');

@@ -3,21 +3,26 @@ import * as THREE from 'three';
 import { G, clamp } from '../core.js';
 import { buildCar } from '../carModel.js';
 import { buildHuman } from '../human.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 export class Stage {
   constructor(renderer) {
     this.r = renderer;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color('#141a2e');
+    this.scene.background = new THREE.Color('#0b1020');
+    const pm = new THREE.PMREMGenerator(renderer);
+    this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environmentIntensity = 0.9;
+    this.scene.fog = new THREE.Fog('#0b1020', 12, 30);
     this.cam = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
     this.yaw = 0.6; this.pitch = 0.18; this.dist = 9; this.autoRot = true;
     const hemi = new THREE.HemisphereLight('#ffffff', '#334', 1.2);
-    const key = new THREE.DirectionalLight('#ffffff', 2.4); key.position.set(5, 8, 6);
+    const key = new THREE.DirectionalLight('#ffffff', 1.6); key.position.set(5, 8, 6);
     key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
     const sc = key.shadow.camera; sc.left = -6; sc.right = 6; sc.top = 6; sc.bottom = -6;
     const rim = new THREE.DirectionalLight('#7aa2ff', 1.6); rim.position.set(-6, 3, -6);
     this.scene.add(hemi, key, rim);
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(7, 48).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#1f2740', roughness: 0.35, metalness: 0.4 }));
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(7, 48).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#141a2c', roughness: 0.28, metalness: 0.15, envMapIntensity: 0.4 }));
     floor.receiveShadow = true;
     this.scene.add(floor);
     const ring = new THREE.Mesh(new THREE.RingGeometry(6.6, 7, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#4cc9f0' }));

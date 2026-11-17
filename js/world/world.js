@@ -4,6 +4,7 @@ import { G, clamp, lerp } from '../core.js';
 import { Geo, colorize } from './geo.js';
 import { SURF, SURF_GRIP, SURF_ROLL } from './builder.js';
 import { RoadGraph } from './graph.js';
+import { Sky } from 'three/addons/objects/Sky.js';
 import * as TX from './textures.js';
 
 const CHUNK = 200;
@@ -64,12 +65,12 @@ export class World {
 
   makeMaterials(snow) {
     const M = this.mats;
-    M.vc = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.0 });
-    M.terrain = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, map: TX.groundTexture() });
-    M.terrain.map.repeat.set(1, 1);
+    M.vc = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.05, envMapIntensity: 0.7 });
+    const gt = TX.groundTexture();
+    M.terrain = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, map: gt, normalMap: gt.userData.normal, normalScale: new THREE.Vector2(0.4, 0.4), envMapIntensity: 0.35 });
     for (const st of [0, 1, 2, 3, 4, 5, 6, 7]) {
       const f = TX.facadeTextures(st);
-      M['bld' + st] = new THREE.MeshStandardMaterial({ vertexColors: true, map: f.map, emissiveMap: f.emissive, emissive: new THREE.Color('#ffffff'), emissiveIntensity: 0, roughness: st === 1 ? 0.4 : 0.8, metalness: st === 1 ? 0.3 : 0.05 });
+      M['bld' + st] = new THREE.MeshStandardMaterial({ vertexColors: true, map: f.map, emissiveMap: f.emissive, emissive: new THREE.Color('#ffffff'), emissiveIntensity: 0, roughness: 1, metalness: 1, roughnessMap: f.rough, metalnessMap: f.rough, normalMap: f.normal || null, envMapIntensity: 1.1 });
       if (st === 0 || st === 1) this.nightMats.push(M['bld' + st]);
     }
     M.road = {};
@@ -80,13 +81,15 @@ export class World {
     this.nightGlow = M.glow;
     M.lightPool = new THREE.MeshBasicMaterial({ map: TX.radialTexture('rgba(255,220,150,0.55)'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
     M.glass = new THREE.MeshStandardMaterial({ color: '#9ec9e8', transparent: true, opacity: 0.35, roughness: 0.05, metalness: 0.5 });
-    M.water = new THREE.MeshStandardMaterial({ color: '#1f7fb8', transparent: true, opacity: 0.82, roughness: 0.08, metalness: 0.35 });
+    M.water = new THREE.MeshPhysicalMaterial({ color: '#0f5d8a', transparent: true, opacity: 0.88, roughness: 0.06, metalness: 0.1, clearcoat: 1, envMapIntensity: 1.6, normalMap: TX.waterNormal(), normalScale: new THREE.Vector2(0.35, 0.35) });
+    M.water.normalMap.repeat.set(60, 60);
   }
 
   roadMat(kind, lanes) {
     const k = kind + lanes;
     if (!this.mats.road[k]) {
-      this.mats.road[k] = new THREE.MeshStandardMaterial({ map: TX.roadTexture(kind, lanes), roughness: 0.9, metalness: 0.0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+      const rt = TX.roadTexture(kind, lanes);
+      this.mats.road[k] = new THREE.MeshStandardMaterial({ map: rt, normalMap: rt.userData.normal, normalScale: new THREE.Vector2(0.8, 0.8), roughness: 0.88, metalness: 0.0, envMapIntensity: 0.6, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
     }
     return this.mats.road[k];
   }
@@ -97,7 +100,7 @@ export class World {
     const gc = new THREE.Color(d.groundColor);
     const cols = {
       [SURF.GRASS]: gc, [SURF.ASPHALT]: new THREE.Color('#555'), [SURF.DIRT]: new THREE.Color('#8b6d4a'), [SURF.SAND]: new THREE.Color('#dcc08a'),
-      [SURF.MUD]: new THREE.Color('#5a4630'), [SURF.ROCK]: new THREE.Color('#8a8a84'), [SURF.CONCRETE]: new THREE.Color('#9b9b98'), [SURF.SNOW]: new THREE.Color('#f2f5f8'),
+      [SURF.MUD]: new THREE.Color('#5a4630'), [SURF.ROCK]: new THREE.Color('#8a8a84'), [SURF.CONCRETE]: new THREE.Color('#7f807c'), [SURF.SNOW]: new THREE.Color('#f2f5f8'),
     };
     const rockC = new THREE.Color('#7d7a72'), snowC = new THREE.Color('#f4f6f8'), sandC = new THREE.Color('#d8c08a'), tmp = new THREE.Color();
     const makeTile = (ti, tj, step) => {
@@ -342,12 +345,15 @@ export class World {
 
   buildVegetation(snow) {
     const leaf = snow ? '#dfe8e3' : '#3f7d3a';
-    const trunkG = new THREE.CylinderGeometry(0.18, 0.28, 2.6, 6).translate(0, 1.3, 0);
+    const leafA = snow ? '#dfe8e3' : '#3e7a34', leafB = snow ? '#c9d6cf' : '#2f6428', leafC = snow ? '#eef3f0' : '#5a9440';
+    const blob = (r, x, y, z, col) => { const g = new THREE.IcosahedronGeometry(r, 1); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const k = 1 + (Math.sin(p.getX(i) * 5.1 + p.getY(i) * 3.3) * 0.12); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.85, p.getZ(i) * k); } g.computeVertexNormals(); return colorize(g.translate(x, y, z), col); };
+    const trunk = (h, r, col) => colorize(new THREE.CylinderGeometry(r * 0.6, r, h, 7).translate(0, h / 2, 0), col);
+    const cone = (r, h, y, col) => colorize(new THREE.ConeGeometry(r, h, 9).translate(0, y, 0), col);
     const types = [
-      mergeGeos([colorize(trunkG.clone(), '#6b4a2f'), colorize(new THREE.IcosahedronGeometry(2.0, 0).translate(0, 3.8, 0), leaf)]),
-      mergeGeos([colorize(trunkG.clone(), '#5b3e28'), colorize(new THREE.ConeGeometry(1.9, 5.5, 7).translate(0, 4.6, 0), snow ? '#e3ece6' : '#2d5a32')]),
-      mergeGeos([colorize(new THREE.CylinderGeometry(0.45, 0.5, 3.4, 7).translate(0, 1.7, 0), '#4f8a4b'), colorize(new THREE.CylinderGeometry(0.3, 0.32, 1.4, 6).rotateZ(Math.PI / 2).translate(0.7, 2.0, 0), '#4f8a4b')]),
-      mergeGeos([colorize(new THREE.CylinderGeometry(0.2, 0.3, 6, 6).translate(0, 3, 0), '#8d6e4f'), colorize(new THREE.ConeGeometry(2.6, 1.0, 7).translate(0, 6.2, 0), '#4c9a3c')]),
+      mergeGeos([trunk(3.2, 0.26, '#5b4030'), blob(1.9, 0, 4.2, 0, leafA), blob(1.4, 1.0, 3.6, 0.5, leafB), blob(1.3, -0.9, 3.8, -0.6, leafC), blob(1.2, 0.2, 5.2, -0.3, leafC)]),
+      mergeGeos([trunk(2.2, 0.24, '#4a3324'), cone(2.4, 3.2, 3.2, snow ? '#e3ece6' : '#24502c'), cone(1.9, 2.8, 4.8, snow ? '#e9f0eb' : '#2b5d33'), cone(1.3, 2.4, 6.3, snow ? '#f2f6f3' : '#336b3a')]),
+      mergeGeos([colorize(new THREE.CapsuleGeometry(0.42, 3, 4, 8).translate(0, 1.9, 0), '#4f8a4b'), colorize(new THREE.CapsuleGeometry(0.26, 1.1, 4, 8).rotateZ(Math.PI / 2).translate(0.75, 2.0, 0), '#4f8a4b'), colorize(new THREE.CapsuleGeometry(0.24, 0.9, 4, 8).translate(1.3, 2.6, 0), '#4f8a4b')]),
+      mergeGeos([colorize(new THREE.CylinderGeometry(0.16, 0.3, 6.5, 7).translate(0, 3.25, 0).applyMatrix4(new THREE.Matrix4().makeShear(0, 0, 0.12, 0, 0, 0)), '#8d6e4f'), ...[0, 1, 2, 3, 4, 5, 6].map((i) => colorize(new THREE.ConeGeometry(0.5, 3.4, 4).rotateZ(Math.PI / 2 + 0.5).translate(1.5, 6.3, 0).rotateY((i / 7) * Math.PI * 2), i % 2 ? '#3f8a35' : '#4c9a3c'))]),
     ];
     const byChunk = new Map();
     for (const t of this.d.trees) {
@@ -612,27 +618,58 @@ export class World {
   }
 
   buildSky() {
-    const geo = new THREE.SphereGeometry(1, 32, 16);
-    this.skyUniforms = {
-      top: { value: new THREE.Color('#3a7bd5') }, bottom: { value: new THREE.Color('#cfe8ff') },
-      sunDir: { value: new THREE.Vector3(0, 1, 0) }, night: { value: 0 }, sunColor: { value: new THREE.Color('#fff2c4') },
-    };
-    const mat = new THREE.ShaderMaterial({
-      uniforms: this.skyUniforms, side: THREE.BackSide, depthWrite: false, fog: false,
-      vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }`,
-      fragmentShader: `uniform vec3 top; uniform vec3 bottom; uniform vec3 sunDir; uniform float night; uniform vec3 sunColor; varying vec3 vDir;
-        float hash(vec3 p){ p = fract(p*0.3183099+.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
-        void main(){ float h = clamp(vDir.y*0.5+0.5,0.0,1.0); vec3 c = mix(bottom, top, pow(h, 1.4));
-          float s = max(dot(normalize(vDir), normalize(sunDir)), 0.0);
-          c += sunColor * (pow(s, 600.0)*3.0 + pow(s, 12.0)*0.25) * (1.0-night*0.7);
-          if(night>0.3){ float st = hash(floor(vDir*220.0)); c += vec3(step(0.996, st)) * (night-0.3) * step(0.0, vDir.y); }
-          gl_FragColor = vec4(c,1.0); }`,
+    // fiziksel atmosfer (Rayleigh/Mie saçılımı)
+    const sky = new Sky();
+    sky.scale.setScalar(4500);
+    const u = sky.material.uniforms;
+    u.turbidity.value = 4; u.rayleigh.value = 1.6; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.82;
+    sky.frustumCulled = false;
+    this.sky = sky;
+    this.skyU = u;
+    this.root.add(sky);
+    // yıldızlar
+    const n = 1500, sp = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, z = Math.random() * 0.95 + 0.05, r = Math.sqrt(1 - z * z);
+      sp.set([Math.cos(a) * r * 2000, z * 2000, Math.sin(a) * r * 2000], i * 3);
+    }
+    const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+    this.stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: '#ffffff', size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false }));
+    this.stars.frustumCulled = false;
+    this.root.add(this.stars);
+    // bulut kubbesi (ufka doğru solar)
+    const ct = TX.cloudTexture();
+    this.cloudU = { map: { value: ct }, offset: { value: new THREE.Vector2() }, color: { value: new THREE.Color('#ffffff') }, cover: { value: 0.5 }, opacity: { value: 0.9 } };
+    this.cloudMat = new THREE.ShaderMaterial({
+      uniforms: this.cloudU, transparent: true, depthWrite: false, side: THREE.BackSide, fog: false,
+      vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }',
+      fragmentShader: `uniform sampler2D map; uniform vec2 offset; uniform vec3 color; uniform float cover; uniform float opacity; varying vec3 vDir;
+        void main(){ if (vDir.y <= 0.0) discard; vec2 uv = vDir.xz / (vDir.y + 0.08) * 0.35 + offset;
+          float c = texture2D(map, uv).a; float c2 = texture2D(map, uv * 2.3 + 0.37).a;
+          float d = smoothstep(cover, cover + 0.35, c * 0.7 + c2 * 0.4);
+          float fade = smoothstep(0.03, 0.28, vDir.y);
+          vec3 col = color * mix(1.0, 0.72, smoothstep(0.4, 1.0, c2));
+          gl_FragColor = vec4(col, d * fade * opacity); }`,
     });
-    this.sky = new THREE.Mesh(geo, mat);
-    this.sky.scale.setScalar(3000);
-    this.sky.frustumCulled = false;
-    this.sky.renderOrder = -1;
-    this.root.add(this.sky);
+    this.clouds = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12), this.cloudMat);
+    this.clouds.scale.setScalar(3500);
+    this.clouds.frustumCulled = false;
+    this.clouds.renderOrder = -1;
+    this.root.add(this.clouds);
+  }
+  setSky(sunDir, night, weather) {
+    const u = this.skyU;
+    u.sunPosition.value.copy(sunDir);
+    const bad = weather === 'rain' || weather === 'fog';
+    u.turbidity.value = bad ? 14 : 4;
+    u.rayleigh.value = bad ? 0.6 : 1.6 + (1 - Math.abs(sunDir.y)) * 0.6;
+    this.stars.material.opacity = Math.max(0, night - 0.3) * (bad ? 0.2 : 1.2);
+    const day = 1 - night;
+    const warm = Math.max(0, 1 - Math.abs(sunDir.y) * 4) * day;
+    this.cloudU.color.value.setRGB(0.18 + day * 0.85, 0.18 + day * 0.8 - warm * 0.15, 0.24 + day * 0.76 - warm * 0.3);
+    if (bad) this.cloudU.color.value.multiplyScalar(0.62);
+    this.cloudU.cover.value = bad ? 0.12 : 0.42;
+    this.cloudU.opacity.value = bad ? 1 : 0.92;
   }
 
   buildWater() {
@@ -807,6 +844,9 @@ export class World {
       }
     }
     this.sky.position.copy(cam);
+    this.stars.position.copy(cam);
+    this.clouds.position.copy(cam);
+    this.cloudU.offset.value.set(G.time * 0.002, G.time * 0.0007);
     // trafik ışıkları renkleri
     if (this.tlBulbs) {
       this._lt = (this._lt || 0) - dt;

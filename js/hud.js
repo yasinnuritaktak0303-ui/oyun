@@ -79,22 +79,38 @@ export class HUD {
       const c = this.gauge.getContext('2d');
       const W = 260, cx = 130, cy = 130;
       c.clearRect(0, 0, W, W);
-      const rr = v.rpm / v.p.red;
-      const a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;
-      c.lineWidth = 14; c.lineCap = 'round';
-      c.strokeStyle = 'rgba(255,255,255,0.12)'; c.beginPath(); c.arc(cx, cy, 112, a0, a1); c.stroke();
-      c.strokeStyle = 'rgba(230,57,70,0.45)'; c.beginPath(); c.arc(cx, cy, 112, a0 + (a1 - a0) * 0.88, a1); c.stroke();
-      const grad = c.createLinearGradient(0, 0, W, 0); grad.addColorStop(0, '#4cc9f0'); grad.addColorStop(0.7, '#7209b7'); grad.addColorStop(1, '#f72585');
-      c.strokeStyle = rr > 0.9 ? '#ff3b3b' : grad;
-      c.beginPath(); c.arc(cx, cy, 112, a0, a0 + (a1 - a0) * clamp(rr, 0, 1)); c.stroke();
-      // tik işaretleri
-      c.fillStyle = 'rgba(255,255,255,0.7)'; c.font = '13px sans-serif'; c.textAlign = 'center';
+      const rr = clamp(v.rpm / v.p.red, 0, 1.02);
+      const a0 = Math.PI * 0.72, a1 = Math.PI * 2.28, span = a1 - a0;
+      // cam disk
+      const bg = c.createRadialGradient(cx, cy, 30, cx, cy, 124);
+      bg.addColorStop(0, 'rgba(10,16,32,0.25)'); bg.addColorStop(0.75, 'rgba(10,16,32,0.72)'); bg.addColorStop(1, 'rgba(10,16,32,0.0)');
+      c.fillStyle = bg; c.beginPath(); c.arc(cx, cy, 124, 0, Math.PI * 2); c.fill();
+      // devir segmentleri
+      const segs = 44;
+      for (let i = 0; i < segs; i++) {
+        const t0 = i / segs, aa = a0 + span * t0, ab = aa + span / segs * 0.62;
+        const on = t0 < rr;
+        const red = t0 > 0.86;
+        c.strokeStyle = on ? (red ? '#ff2d55' : `hsl(${195 - t0 * 70}, 100%, ${55 + t0 * 10}%)`) : red ? 'rgba(255,45,85,0.28)' : 'rgba(255,255,255,0.13)';
+        c.lineWidth = on ? 13 : 11;
+        c.beginPath(); c.arc(cx, cy, 108, aa, ab); c.stroke();
+      }
+      if (rr > 0.9) { c.shadowColor = '#ff2d55'; c.shadowBlur = 18; c.strokeStyle = 'rgba(255,45,85,0.35)'; c.lineWidth = 3; c.beginPath(); c.arc(cx, cy, 122, a0, a1); c.stroke(); c.shadowBlur = 0; }
+      // rakamlar
+      c.fillStyle = 'rgba(220,230,255,0.75)'; c.font = '600 13px "Exo 2", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
       const maxK = Math.ceil(v.p.red / 1000);
-      for (let i = 0; i <= maxK; i++) { const a = a0 + (a1 - a0) * (i * 1000 / v.p.red); if (a > a1 + 0.01) break; c.fillText(String(i), cx + Math.cos(a) * 88, cy + Math.sin(a) * 88 + 4); }
-      // hız yayı
-      const vr = clamp(sp / (v.p.vmax * 3.6 * 1.1), 0, 1);
-      c.lineWidth = 5; c.strokeStyle = 'rgba(255,255,255,0.85)';
-      c.beginPath(); c.arc(cx, cy, 96, a0, a0 + (a1 - a0) * vr); c.stroke();
+      const step = maxK > 10 ? 2 : 1;
+      for (let i = 0; i <= maxK; i += step) { const a = a0 + span * (i * 1000 / v.p.red); if (a > a1 + 0.01) break; c.fillText(String(i), cx + Math.cos(a) * 86, cy + Math.sin(a) * 86); }
+      // hız ince yayı
+      const vr = clamp(sp / (v.p.vmax * 3.6 * 1.05), 0, 1);
+      c.lineCap = 'round';
+      c.lineWidth = 3; c.strokeStyle = 'rgba(255,255,255,0.12)'; c.beginPath(); c.arc(cx, cy, 72, a0, a1); c.stroke();
+      const g2 = c.createLinearGradient(0, W, W, 0); g2.addColorStop(0, '#00d2ff'); g2.addColorStop(1, '#ff3d81');
+      c.strokeStyle = g2; c.beginPath(); c.arc(cx, cy, 72, a0, a0 + span * vr); c.stroke();
+      c.lineCap = 'butt';
+      // nitro ve yakıt yayları (alt)
+      const arc2 = (r, a, b, k, col) => { c.lineWidth = 5; c.strokeStyle = 'rgba(255,255,255,0.1)'; c.beginPath(); c.arc(cx, cy, r, a, b); c.stroke(); c.strokeStyle = col; c.beginPath(); c.arc(cx, cy, r, a, a + (b - a) * clamp(k, 0, 1)); c.stroke(); };
+      arc2(122, Math.PI * 0.32, Math.PI * 0.68, v.nitro, '#3ad1ff');
     }
     // ikonlar
     const ic = [];

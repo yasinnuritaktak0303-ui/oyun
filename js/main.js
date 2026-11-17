@@ -35,6 +35,7 @@ function resize() {
   renderer.setSize(innerWidth, innerHeight);
   if (G.camera) { G.camera.aspect = innerWidth / innerHeight; G.camera.updateProjectionMatrix(); }
   if (ui && ui.composer) ui.composer.setSize(innerWidth, innerHeight);
+  if (G.renderPipe) G.renderPipe.setSize(innerWidth, innerHeight);
 }
 on('resize', resize);
 addEventListener('resize', resize);

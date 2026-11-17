@@ -6,7 +6,7 @@ import { saveSettings, applyPreset, PRESETS, PRESET_ORDER, PRESET_NAMES } from '
 import { slotInfo, loadSlot, newProfile, deleteSlot, save, currentCarEntry } from '../save.js';
 import { MAPS, MAP, ACHIEVEMENTS, LICENSES, DAILY_TEMPLATES, TIPS, RADIO, HOUSES, EMOTES, LOGIN_REWARDS } from '../data/content.js';
 import { MISSIONS, MISSION, MTYPES, PARK_SUBS, missionDesc } from '../data/missions.js';
-import { CAR } from '../data/cars.js';
+import { CAR, CLASSES, ENGINES } from '../data/cars.js';
 import { missionUnlocked, licenseOk } from '../missions.js';
 import { initAudio, applyVolumes, radio, sfx, suspendAudio } from '../audio.js';
 import { requestTilt, resetLayout, input } from '../input.js';
@@ -149,24 +149,40 @@ export class UI {
     this.stack = [];
     this.stage.showCar(currentCarEntry());
     const p = G.profile;
-    const B = (icon, label, fn, cls = '') => el('button', { class: 'mbtn ' + cls, onclick: fn }, el('span', { class: 'mi' }, icon), el('span', {}, label));
+    const B = (icon, label, sub, fn, cls = '') => el('button', { class: 'mbtn ' + cls, onclick: fn }, el('span', { class: 'mi' }, icon), el('span', { class: 'mt' }, el('b', {}, label), el('small', {}, sub)), el('span', { class: 'mchev' }, '›'));
+    const e = currentCarEntry(), spec = CAR[e.id];
+    const xpNeed = this.game.xpNeed(p.level);
+    const doneM = Object.keys(p.missions).filter((k) => MISSION[k]).length;
     this.root.innerHTML = '';
     this.root.appendChild(el('div', { class: 'main-menu' },
-      el('div', { class: 'mm-head' }, el('h1', {}, 'OTO', el('span', {}, 'DÜNYA')),
-        el('div', { class: 'mm-player' }, el('b', {}, p.name), el('span', {}, `${t('Sv')} ${p.level}`), el('span', {}, '💰 ' + fmtNum(p.money)), el('span', {}, '🪙 ' + fmtNum(p.gold)), el('span', {}, '🪪 ' + p.licenses.join(' ')))),
-      el('div', { class: 'mm-grid' },
-        B('🚗', t('Serbest Sürüş'), () => this.go(this.mapSelect), 'big primary'),
-        B('🎯', t('Görevler'), () => this.go(this.missionsMenu)),
-        B('🔩', t('Garaj'), () => this.go(Shop.garage)),
-        B('🏪', t('Galeri'), () => this.go(Shop.gallery)),
-        B('🧍', t('Karakter'), () => this.go(Shop.character)),
-        B('🏆', t('Başarımlar'), () => this.go(this.achievements)),
-        B('📅', t('Etkinlikler'), () => this.go(this.events)),
-        B('⚙️', t('Ayarlar'), () => this.go(this.settings)),
-        B('🌐', t('Çok Oyunculu'), () => this.dialog(t('Çok Oyunculu'), t('Çevrim içi mod geliştirme aşamasında (ileri aşama). Şimdilik tek oyunculu oynayabilirsin.'), [{ label: t('Tamam') }])),
-        B('💾', t('Kayıt Seç'), () => { save(true); this.title(); }),
+      el('div', { class: 'mm-head' },
+        el('div', { class: 'brand' }, el('h1', {}, 'OTO', el('span', {}, 'DÜNYA')), el('small', {}, t('Açık Dünya Sürüş • Park • Yarış'))),
+        el('div', { class: 'profile-chip' },
+          el('div', { class: 'avatar', style: { '--p': Math.round((p.xp / xpNeed) * 100) + '%' } }, el('b', {}, String(p.level))),
+          el('div', { class: 'pc-info' }, el('b', {}, p.name), el('small', {}, `${t('Sv')} ${p.level} • ${p.licenses.join(' · ')}`)),
+          el('div', { class: 'pc-cur' }, el('span', { class: 'cur money' }, '💰 ' + fmtNum(p.money)), el('span', { class: 'cur gold' }, '🪙 ' + fmtNum(p.gold))))),
+      el('div', { class: 'mm-nav' },
+        B('🏁', t('Serbest Sürüş'), t('Haritayı keşfet, sandık bul'), () => this.go(this.mapSelect), 'hero'),
+        B('🎯', t('Görevler'), `${doneM}/${MISSIONS.length}`, () => this.go(this.missionsMenu)),
+        B('🔧', t('Garaj'), `${p.cars.length} ${t('araç')}`, () => this.go(Shop.garage)),
+        B('🏪', t('Galeri'), t('Yeni araç al'), () => this.go(Shop.gallery)),
+        B('🧑', t('Karakter'), t('Görünüm ve kıyafet'), () => this.go(Shop.character)),
+        B('📅', t('Etkinlikler'), t('Günlük, turnuva, sandık avı'), () => this.go(this.events)),
+        B('🏆', t('Başarımlar'), `${Object.keys(p.achievements).length}/${ACHIEVEMENTS.length}`, () => this.go(this.achievements)),
+        B('⚙️', t('Ayarlar'), t('Grafik, kontrol, ses'), () => this.go(this.settings)),
+        el('div', { class: 'mm-row' },
+          el('button', { class: 'btn ghost', onclick: () => this.dialog(t('Çok Oyunculu'), t('Çevrim içi mod geliştirme aşamasında (ileri aşama). Şimdilik tek oyunculu oynayabilirsin.'), [{ label: t('Tamam') }]) }, '🌐 ' + t('Çok Oyunculu')),
+          el('button', { class: 'btn ghost', onclick: () => { save(true); this.title(); } }, '💾 ' + t('Kayıt Seç'))),
       ),
-      el('button', { class: 'btn primary continue', onclick: () => this.resumeGame() }, '▶ ' + t('Sürüşe devam et')),
+      el('button', { class: 'btn primary continue', onclick: () => this.resumeGame() }, t('Sürüşe devam et'), el('span', { class: 'kbd' }, '▶')),
+    ));
+    this.root.appendChild(el('div', { class: 'showcase' },
+      el('small', {}, t(CLASSES.find((c) => c.id === spec.cls).name) + ' • ' + spec.drive.toUpperCase()),
+      el('h2', {}, spec.name),
+      el('div', { class: 'sc-stats' },
+        el('div', {}, el('b', {}, String(Math.round(speedVal(spec.vmax)))), el('small', {}, speedUnit())),
+        el('div', {}, el('b', {}, String(spec.t100)), el('small', {}, '0-100 sn')),
+        el('div', {}, el('b', {}, ENGINES[e.engineSwap || spec.engine].name), el('small', {}, t('Motor')))),
     ));
   }
   resumeGame() {
@@ -622,6 +638,7 @@ export class UI {
       if (fps < target * 0.7 && idx > 0) idx = Math.max(0, idx - (fps < target * 0.45 ? 2 : 1));
       else if (fps > target * 0.98 && idx < 3 && G.refresh >= 90) idx++;
       applyPreset(PRESET_ORDER[idx]);
+      emit('graphics');
       S.benchmarked = true; saveSettings();
       this.game.applyShadowQuality();
       emit('resize');

@@ -19,6 +19,7 @@ import { save, currentCarEntry, newCarEntry } from './save.js';
 import { CAR, CARS } from './data/cars.js';
 import { MAPS, MAP, ACHIEVEMENTS, LICENSES, DAILY_TEMPLATES, LOGIN_REWARDS, TIPS, RADIO, GARAGE_TIERS, HOUSES } from './data/content.js';
 import { MISSIONS } from './data/missions.js';
+import { RenderPipe } from './render.js';
 
 const STEP = 1 / 120; // fizik adımı: saniyede 120
 const MAX_STEPS = 12;
@@ -30,7 +31,7 @@ export class Game {
     this.renderer = renderer;
     this.ui = ui;
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 4000);
+    this.camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.2, 5000);
     this.rearCam = new THREE.PerspectiveCamera(70, 16 / 9, 0.1, 400);
     G.scene = this.scene; G.camera = this.camera; G.renderer = renderer; G.game = this;
     this.camCtl = new CameraCtl(this.camera, renderer.domElement);
@@ -50,6 +51,9 @@ export class Game {
     this.renderPos = new THREE.Vector3(); this.renderQuat = new THREE.Quaternion();
     this.pausedSoft = false;
     this.setupLights();
+    this.pipe = new RenderPipe(renderer, this.scene, this.camera);
+    G.renderPipe = this.pipe;
+    on('graphics', () => this.pipe.build());
     on('saved', () => this.hud.savedBlink());
     on('trafficHit', () => { if (this.drift.active) this.endDrift(true); });
     on('pedHit', () => { this.toast(t('Dikkat! Yayaya çarptın!'), 'warn'); if (G.profile) G.profile.money = Math.max(0, G.profile.money - 200); this.hud.money(-200, 0, t('Ceza')); });
@@ -419,7 +423,7 @@ export class Game {
     const car = this.car;
     switch (a) {
       case 'enter': if (this.onFoot) this.enterCar(); else this.exitCar(); break;
-      case 'lights': this.lights = !this.lights; sfx('click'); break;
+      case 'lights': this.lights = !this.lights; this.lightsManual = true; sfx('click'); break;
       case 'hiBeam': this.highBeam = !this.highBeam; if (this.highBeam) this.lights = true; sfx('click'); break;
       case 'indL': this.indL = !this.indL; this.indR = false; if (this.indL) this.sigTime.L = G.time; sfx('tick'); break;
       case 'indR': this.indR = !this.indR; this.indL = false; if (this.indR) this.sigTime.R = G.time; sfx('tick'); break;
@@ -712,23 +716,26 @@ export class Game {
     const fog = G.weather === 'fog', rain = G.weather === 'rain';
     const dim = rain ? 0.55 : fog ? 0.65 : 1;
     this.sun.intensity = (dir.y > 0 ? 2.6 * day : 0.25) * dim;
-    this.hemi.intensity = (0.25 + day * 0.75) * (rain ? 0.8 : 1);
+    this.hemi.intensity = (0.35 + day * 0.55) * (rain ? 0.8 : 1);
     const top = new THREE.Color('#3a7bd5').lerp(new THREE.Color('#050a1a'), night);
     const bottom = new THREE.Color('#cfe8ff').lerp(new THREE.Color('#ffb36b'), warm * day * 0.7).lerp(new THREE.Color('#0b1022'), night);
     if (rain || fog) { top.lerp(new THREE.Color('#7d8794'), 0.7 * day + 0.2); bottom.lerp(new THREE.Color('#9aa3ad'), 0.7 * day + 0.1); }
     if (this.world) {
-      const u = this.world.skyUniforms;
-      u.top.value.copy(top); u.bottom.value.copy(bottom); u.sunDir.value.copy(dir); u.night.value = night;
+      this.world.setSky(dir, night, G.weather);
       this.world.setNight(night);
     }
+    if (G.renderPipe) G.renderPipe.updateEnv(dir, night, G.weather, bottom);
     this.hemi.color.copy(bottom).lerp(new THREE.Color('#ffffff'), 0.3);
     this.scene.fog.color.copy(bottom);
     const vd = G.settings.viewDist;
-    const fogNear = fog ? 15 : rain ? vd * 0.25 : vd * 0.5;
-    const fogFar = fog ? 160 : rain ? vd * 0.8 : vd * 1.05;
+    const fogNear = fog ? 15 : rain ? vd * 0.25 : vd * 0.55;
+    const fogFar = fog ? 160 : rain ? vd * 0.85 : vd * 1.25;
     this.scene.fog.near = lerp(this.scene.fog.near, fogNear, 0.05); this.scene.fog.far = lerp(this.scene.fog.far, fogFar, 0.05);
-    this.camera.far = Math.max(fogFar + 50, 400); this.camera.updateProjectionMatrix();
-    this.renderer.toneMappingExposure = 0.9 + day * 0.15;
+    if (this.camera.far !== 5000) { this.camera.far = 5000; this.camera.updateProjectionMatrix(); }
+    this.renderer.toneMappingExposure = 0.55 + day * 0.12 + night * 0.25;
+    // gece otomatik far
+    if (night > 0.55 && !this._autoLit && !this.lightsManual) { this.lights = true; this._autoLit = true; }
+    if (night < 0.3 && this._autoLit) { if (!this.lightsManual) this.lights = false; this._autoLit = false; }
   }
   updateWeather(dt) {
     if (this.weatherLock) return;
@@ -1058,7 +1065,7 @@ export class Game {
     const w = r.domElement.width, h = r.domElement.height;
     r.setViewport(0, 0, w / r.getPixelRatio(), h / r.getPixelRatio());
     if (this.ui.composer && G.mode === 'photo' && this.ui.photoDof) this.ui.composer.render();
-    else r.render(this.scene, this.camera);
+    else this.pipe.render(dt, G.nightF || 0, G.settings.motionBlur && !this.onFoot ? clamp((car.kmh - 120) / 200, 0, 1) : 0);
     // geri görüş kamerası
     const showRear = !this.onFoot && car.gear === 0 && this.camCtl.mode !== 4 && G.mode === 'play';
     this.hud.rearView(showRear);

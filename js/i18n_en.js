@@ -1,5 +1,11 @@
 // İngilizce çeviriler (anahtar: Türkçe metin)
 export const EN = {
+"Haritayı keşfet, sandık bul": "Explore the map, find chests",
+"araç": "cars",
+"Yeni araç al": "Buy a new car",
+"Görünüm ve kıyafet": "Looks and outfits",
+"Günlük, turnuva, sandık avı": "Daily, tournament, chest hunt",
+"Grafik, kontrol, ses": "Graphics, controls, audio",
 "Oyuncak": "Toy",
 "EL": "HB",
 "-150 kg": "-150 kg",

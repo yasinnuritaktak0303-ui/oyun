@@ -119,7 +119,7 @@ const DEFAULT_LAYOUT = {
 
 export function createTouchUI(root) {
   const S = G.settings;
-  const wrap = el('div', { class: 'touch-ui', id: 'touchUI' });
+  const wrap = el('div', { class: 'touch-ui', id: 'touchUI', style: { display: 'none' } });
   root.appendChild(wrap);
   const items = {};
   const mk = (id, label, cls, hold) => {
