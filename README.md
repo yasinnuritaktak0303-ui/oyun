@@ -28,3 +28,11 @@ GitHub Pages gibi bir statik barındırmaya doğrudan yüklenebilir.
 Klavye kısayolları duraklatma menüsünde listelenir.
 
 Çok oyunculu mod (madde 26) henüz yoktur; sunucu gerektirdiği için ileri aşamaya bırakılmıştır.
+
+## Tek dosya sürümü
+`oyun-tek-dosya.html`: tüm oyun (Three.js, kodlar, stiller) tek bir HTML dosyasındadır.
+Sunucu gerekmez; dosyaya çift tıklayarak tarayıcıda açabilirsin. Yeniden üretmek için:
+
+```
+npm i -D esbuild && node tools/build-single.mjs
+```

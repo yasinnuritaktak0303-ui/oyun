@@ -123,7 +123,7 @@ G.mode = 'menu';
 document.getElementById('boot').remove();
 
 // çevrimdışı destek
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+if (!window.__SINGLE__ && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 window.__game = game;
