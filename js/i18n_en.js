@@ -1,6 +1,7 @@
 // İngilizce çeviriler (anahtar: Türkçe metin)
 export const EN = {
 "Oyuncak": "Toy",
+"EL": "HB",
 "-150 kg": "-150 kg",
 "0 kg": "0 kg",
 "4 Silindir": "Inline-4",

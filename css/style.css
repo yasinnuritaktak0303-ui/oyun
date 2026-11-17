@@ -324,3 +324,33 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
   .minimap-wrap { width: 110px; height: 110px; }
   .bigtext { font-size: 2em; }
 }
+
+/* ---------- mobil yerleşim düzeltmeleri ---------- */
+@media (max-width: 900px), (max-height: 500px) {
+  .gauge-wrap { width: 124px; height: 124px; top: max(4px, env(safe-area-inset-top)); bottom: auto; right: 50%; transform: translateX(50%); }
+  .g-speed { top: 30%; }
+  .g-speed b { font-size: 1.8em; }
+  .g-gear { font-size: 1em; }
+  .g-bars { top: auto; bottom: -22px; right: -30px; width: 184px; flex-direction: row; left: auto; }
+  .g-icons { display: none; }
+  .mission-timer { top: 150px; font-size: 1.3em; }
+  .rear-frame { left: 12px; top: 140px; transform: none; width: 180px; }
+  .toasts { top: 160px; }
+  .police-bar { top: 150px; }
+  .shift-bar { bottom: auto; top: 156px; }
+  .main-menu, .title-screen { justify-content: flex-start; padding: 12px 16px; gap: 8px; }
+  .mm-head h1 { font-size: 1.6em; margin: 0; }
+  .mm-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .mbtn { padding: 8px 10px; font-size: 0.9em; gap: 6px; }
+  .mbtn .mi { font-size: 1.2em; }
+  .mbtn.big { grid-column: span 3; padding: 10px; font-size: 1em; }
+  .continue { padding: 10px; }
+  .scr-head { padding: 6px 12px; }
+  .scr-body { padding: 10px 12px 30px; }
+}
+@media (max-height: 500px) {
+  .mm-grid { grid-template-columns: repeat(4, 1fr); }
+  .mbtn.big { grid-column: span 4; }
+  .screen.split .scr-body { padding-top: 10px; width: 58%; background: rgba(8, 12, 28, 0.95); }
+  .screen.split { background: transparent; }
+}

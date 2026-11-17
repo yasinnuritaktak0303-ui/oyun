@@ -91,7 +91,7 @@ function loop(now) {
     if (game.hud) game.hud.showFps(S.showFps && G.mode !== 'menu', G.fps, `• ${Math.round(S.resScale * dynScale * 100)}%`);
   }
   if (G.mode === 'menu') {
-    ui.stage.render(dt, { ox: innerWidth > 900 ? -innerWidth * 0.26 : 0, oy: innerWidth > 900 ? 0 : innerHeight * 0.25 });
+    ui.stage.render(dt, innerWidth > 900 ? { ox: -innerWidth * 0.26 } : innerHeight < 500 ? { ox: -innerWidth * 0.3 } : { ox: 0, oy: innerHeight * 0.25 });
   } else if (G.mode === 'play' || G.mode === 'photo' || G.mode === 'drone') {
     game.frame(dt);
     if (G.profile && G.mode === 'play' && !G.paused) { G.profile.playTime = (G.profile.playTime || 0) + dt; }

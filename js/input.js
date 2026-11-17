@@ -140,7 +140,7 @@ export function createTouchUI(root) {
   mk('right', '▶', 'big drive-btn', (v) => (T.right = v ? 1 : 0));
   mk('gas', '⬆', 'big drive', (v) => (T.gas = v ? 1 : 0));
   mk('brake', '⬇', 'big drive', (v) => (T.brake = v ? 1 : 0));
-  mk('hb', 'EL', 'drive', (v) => (T.hb = v));
+  mk('hb', t('EL'), 'drive', (v) => (T.hb = v));
   mk('nitro', 'N₂O', 'drive nitro', (v) => (T.nitro = v));
   mk('horn', '📯', 'drive small', (v) => (T.horn = v));
   mk('gup', '+', 'drive small manual', (v) => v && pushAction('shiftUp'));
